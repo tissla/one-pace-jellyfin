@@ -1,0 +1,49 @@
+name: Build metadata index
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "chapters.json"
+      - "One Pace/**"
+      - "scripts/**"
+  pull_request:
+    paths:
+      - "chapters.json"
+      - "One Pace/**"
+      - "scripts/**"
+
+permissions:
+  contents: write
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Fails the job if any episode NFO has no chapters.json entry at all -
+      # see scripts/build_metadata_index.py's docstring for what is and isn't
+      # treated as fatal (chapter-range overlaps from "cover story" bonus
+      # chapters are expected and only reported, not failed on).
+      - name: Build metadata-index.json
+        run: python3 scripts/build_metadata_index.py
+
+      - name: Commit updated index
+        if: github.event_name == 'push'
+        run: |
+          if git diff --quiet -- "One Pace/metadata-index.json"; then
+            echo "No changes to metadata-index.json"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "One Pace/metadata-index.json"
+          git commit -m "chore: regenerate metadata-index.json [skip ci]"
+          git push
