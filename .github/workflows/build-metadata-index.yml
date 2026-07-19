@@ -29,7 +29,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Fails the job if any episode NFO has no chapters.json entry at all -
       - name: Build metadata-index.json
         run: python3 scripts/build_metadata_index.py
 

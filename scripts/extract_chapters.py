@@ -1,18 +1,10 @@
 #!/usr/bin/env python3
-"""One-shot / bootstrap migration tool.
+"""Bootstrap chapters.json from the episode NFOs.
 
-Walks every episode .nfo under "One Pace/" and extracts season/episode/manga
-chapter-range data into chapters.json - the canonical, structured source of
-truth for chapter ranges going forward, decoupled from the free-form <plot>
-prose (which is managed by tinyMediaManager and not reliable to parse at
-runtime).
+Usage: python3 scripts/extract_chapters.py [--out chapters.json] [--force]
 
-Usage:
-    python3 scripts/extract_chapters.py [--out chapters.json]
-
-Safe to re-run later to bootstrap entries for newly added episodes - it never
-overwrites an existing entry in the output file's season/episode slot if one
-is already present, unless --force is passed.
+Safe to re-run for new episodes - won't overwrite existing entries unless
+--force is passed.
 """
 import argparse
 import json
@@ -21,23 +13,15 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-ONE_PACE_DIR = ROOT / "One Pace"
+from _common import ROOT, ONE_PACE_DIR, is_episode_nfo
 
 CHAPTER_LINE_RE = re.compile(r"Manga\s*Chapter\(s\)?:\s*([^\n]+)", re.IGNORECASE)
 LEADING_NUMBER_RE = re.compile(r"^\s*(\d+)(?:\s*-\s*(\d+))?")
 
 
-def is_episode_nfo(name: str) -> bool:
-    # Mirrors shared.IsEpisodeNFO in opforjellyfin: a .nfo file that isn't
-    # season.nfo or tvshow.nfo.
-    return name.endswith(".nfo") and "season" not in name and "tvshow" not in name
-
-
 def parse_component(text: str) -> str | None:
-    """Extract a leading 'N' or 'N-M' numeric range from a chapter-list
-    component, ignoring any trailing descriptive words (e.g. 'cover
-    stories'). Returns None if the component doesn't start with a digit."""
+    """Leading 'N' or 'N-M' from a chapter-list component, ignoring trailing
+    text (e.g. 'cover stories'). None if it doesn't start with a digit."""
     m = LEADING_NUMBER_RE.match(text)
     if not m:
         return None
@@ -69,8 +53,7 @@ def extract_chapter_data(plot: str) -> dict:
     if extras:
         result["extraRanges"] = extras
 
-    # Record when a component had trailing text after the number, purely for
-    # human review - not consumed by build_metadata_index.py.
+    # note when there's trailing text after the number, for human review
     stripped_primary_num = LEADING_NUMBER_RE.match(components[0])
     if stripped_primary_num and stripped_primary_num.end() < len(components[0]):
         result["note"] = f"trailing text in source: {components[0]!r}"
@@ -124,7 +107,7 @@ def main() -> int:
         if data.get("range") is None or "note" in data:
             flagged.append((str(nfo_path.relative_to(ROOT)), data))
 
-    # Keep season/episode keys sorted numerically for a readable diff.
+    # keep season/episode keys sorted numerically for a readable diff
     ordered = {
         s: dict(sorted(chapters[s].items(), key=lambda kv: int(kv[0])))
         for s in sorted(chapters, key=int)

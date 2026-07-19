@@ -1,25 +1,15 @@
 #!/usr/bin/env python3
 """Normalize episode .nfo files to a consistent structure.
 
-Scoped exactly to what the audit behind chapters.json's migration found - no
-speculative changes beyond these:
-  - missing <showtitle>One Pace</showtitle>
-  - <season>/<episode> tags shuffled to the end of the file instead of their
-    usual spot right after <showtitle> (found to affect a whole batch of
-    recently-added episodes, not just the couple of files first sampled)
-  - datetime timestamps in <premiered>/<aired> instead of plain dates
-  - the <plot>'s episode-count label ("Episodes:"/"Episode(s):") unified to
-    "Anime Episode(s):"
-
-Leaves everything else - plot prose, blank-line style, the XML declaration -
-exactly as authored. Idempotent: safe to re-run.
+Fixes: missing <showtitle>, <season>/<episode> shuffled to the end of the
+file, datetime timestamps in <premiered>/<aired>, and the plot's episode-
+count label unified to "Anime Episode(s):". Leaves plot prose, blank-line
+style, and the XML declaration untouched. Idempotent.
 """
 import re
 import sys
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-ONE_PACE_DIR = ROOT / "One Pace"
+from _common import ONE_PACE_DIR, ROOT, is_episode_nfo
 
 DATETIME_RE = re.compile(
     r"(<(?:premiered|aired)>\d{4}-\d{2}-\d{2}) \d{2}:\d{2}:\d{2}(</(?:premiered|aired)>)"
@@ -77,7 +67,7 @@ def normalize(text: str) -> tuple[str, bool]:
 def main() -> int:
     changed = []
     for nfo_path in sorted(ONE_PACE_DIR.glob("*/*.nfo")):
-        if "season" in nfo_path.name or "tvshow" in nfo_path.name:
+        if not is_episode_nfo(nfo_path.name):
             continue
         text = nfo_path.read_text()
         new_text, did_change = normalize(text)

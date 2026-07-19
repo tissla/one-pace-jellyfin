@@ -1,44 +1,35 @@
 #!/usr/bin/env python3
 """Build One Pace/metadata-index.json from chapters.json + the NFOs.
 
-This is the single source of generation logic, run both as a one-shot local
-step and by the CI workflow (.github/workflows/build-metadata-index.yml) on
-every push. Output shape matches opforjellyfin's shared.MetadataIndex exactly
-(internal/shared/types.go / internal/metadata/indexbuilder.go there - not
-modified by this repo):
+Single source of generation logic, run both one-shot locally and by CI on
+every push. Output shape matches opforjellyfin's shared.MetadataIndex
+(internal/shared/types.go / internal/metadata/indexbuilder.go there):
 
     {"seasons": {"Season 1": {"range": "1-45", "name": "Romance Dawn",
                                "episodes": {"1-1": {"title": "<nfo filename
                                stem>"}, ...}}, "Specials": {...}}}
 
 EpisodeData.title is the NFO's filename stem (not the <title> tag), matching
-opforjellyfin's existing indexbuilder.go behavior exactly, so upgrading an
-existing install doesn't change any already-placed filenames.
+opforjellyfin's indexbuilder.go exactly, so upgrading an existing install
+doesn't rename anything already placed on disk.
 
 Exit codes:
-    0  success (validation warnings, if any, are non-fatal - printed to stderr)
-    1  a hard failure: an episode NFO exists on disk with no corresponding
-       chapters.json entry at all (a real oversight - every current episode
-       has one; this only trips for future episodes added without updating
-       chapters.json first)
+    0  success (validation warnings, if any, are non-fatal)
+    1  an episode NFO has no chapters.json entry at all (a real oversight -
+       every current episode has one; only trips for future ones added
+       without updating chapters.json first)
 """
-
 import json
 import re
 import sys
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-ONE_PACE_DIR = ROOT / "One Pace"
+from _common import ROOT, ONE_PACE_DIR, is_episode_nfo
+
 CHAPTERS_PATH = ROOT / "chapters.json"
 OUT_PATH = ONE_PACE_DIR / "metadata-index.json"
 
 NAMEDSEASON_RE = re.compile(r'<namedseason\s+number="(\d+)">([^<]+)</namedseason>')
-
-
-def is_episode_nfo(name: str) -> bool:
-    return name.endswith(".nfo") and "season" not in name and "tvshow" not in name
 
 
 def season_key(season: str) -> str:
@@ -87,7 +78,7 @@ def main() -> int:
 
         chapter_range = entry.get("range")
         if chapter_range is None:
-            continue
+            continue  # no usable chapter data - not indexed, same as before
 
         skey = season_key(season)
         season_bucket = seasons.setdefault(
@@ -98,14 +89,14 @@ def main() -> int:
         for r in [chapter_range, *entry.get("extraRanges", [])]:
             season_bucket["episodes"][r] = {"title": title}
 
-    # Orphaned chapters.json entries (on disk previously, file since removed/renamed).
+    # orphaned chapters.json entries (NFO since removed/renamed)
     orphans = []
     for season, eps in chapters.items():
         for episode in eps:
             if (season, episode) not in seen_keys:
                 orphans.append(f"season {season} episode {episode}")
 
-    # Season chapter-range summary (min/max across all indexed keys), except Specials.
+    # season range = min/max across all indexed keys, except Specials
     for skey, bucket in seasons.items():
         if skey == "Specials":
             continue
@@ -114,33 +105,20 @@ def main() -> int:
         hi = max(e for _, e in starts_ends)
         bucket["range"] = f"{lo}-{hi}"
 
-    OUT_PATH.write_text(
-        json.dumps({"seasons": seasons}, indent=2, sort_keys=True) + "\n"
-    )
+    OUT_PATH.write_text(json.dumps({"seasons": seasons}, indent=2, sort_keys=True) + "\n")
 
     if orphans:
-        print(
-            f"NOTE: {len(orphans)} chapters.json entries have no matching NFO on disk (informational):",
-            file=sys.stderr,
-        )
+        print(f"NOTE: {len(orphans)} chapters.json entries have no matching NFO on disk:", file=sys.stderr)
         for o in orphans:
             print(f"  {o}", file=sys.stderr)
 
-    print(
-        f"Wrote {OUT_PATH.relative_to(ROOT)} ({len(seasons)} seasons)", file=sys.stderr
-    )
+    print(f"Wrote {OUT_PATH.relative_to(ROOT)} ({len(seasons)} seasons)", file=sys.stderr)
 
     if missing_entries:
-        print(
-            f"\nFAIL: {len(missing_entries)} episode NFOs have no chapters.json entry at all:",
-            file=sys.stderr,
-        )
+        print(f"\nFAIL: {len(missing_entries)} episode NFOs have no chapters.json entry at all:", file=sys.stderr)
         for m in missing_entries:
             print(f"  {m}", file=sys.stderr)
-        print(
-            "\nAdd entries for these to chapters.json (see scripts/extract_chapters.py --force to bootstrap new ones), then re-run.",
-            file=sys.stderr,
-        )
+        print("\nAdd entries to chapters.json (see extract_chapters.py --force), then re-run.", file=sys.stderr)
         return 1
 
     return 0
