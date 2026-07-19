@@ -22,6 +22,7 @@ Exit codes:
        has one; this only trips for future episodes added without updating
        chapters.json first)
 """
+
 import json
 import re
 import sys
@@ -86,7 +87,7 @@ def main() -> int:
 
         chapter_range = entry.get("range")
         if chapter_range is None:
-            continue  # no usable chapter data (Unavailable / non-numeric / etc.) - not indexed, same as before
+            continue
 
         skey = season_key(season)
         season_bucket = seasons.setdefault(
@@ -113,20 +114,33 @@ def main() -> int:
         hi = max(e for _, e in starts_ends)
         bucket["range"] = f"{lo}-{hi}"
 
-    OUT_PATH.write_text(json.dumps({"seasons": seasons}, indent=2, sort_keys=True) + "\n")
+    OUT_PATH.write_text(
+        json.dumps({"seasons": seasons}, indent=2, sort_keys=True) + "\n"
+    )
 
     if orphans:
-        print(f"NOTE: {len(orphans)} chapters.json entries have no matching NFO on disk (informational):", file=sys.stderr)
+        print(
+            f"NOTE: {len(orphans)} chapters.json entries have no matching NFO on disk (informational):",
+            file=sys.stderr,
+        )
         for o in orphans:
             print(f"  {o}", file=sys.stderr)
 
-    print(f"Wrote {OUT_PATH.relative_to(ROOT)} ({len(seasons)} seasons)", file=sys.stderr)
+    print(
+        f"Wrote {OUT_PATH.relative_to(ROOT)} ({len(seasons)} seasons)", file=sys.stderr
+    )
 
     if missing_entries:
-        print(f"\nFAIL: {len(missing_entries)} episode NFOs have no chapters.json entry at all:", file=sys.stderr)
+        print(
+            f"\nFAIL: {len(missing_entries)} episode NFOs have no chapters.json entry at all:",
+            file=sys.stderr,
+        )
         for m in missing_entries:
             print(f"  {m}", file=sys.stderr)
-        print("\nAdd entries for these to chapters.json (see scripts/extract_chapters.py --force to bootstrap new ones), then re-run.", file=sys.stderr)
+        print(
+            "\nAdd entries for these to chapters.json (see scripts/extract_chapters.py --force to bootstrap new ones), then re-run.",
+            file=sys.stderr,
+        )
         return 1
 
     return 0

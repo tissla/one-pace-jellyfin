@@ -30,9 +30,6 @@ jobs:
           python-version: "3.12"
 
       # Fails the job if any episode NFO has no chapters.json entry at all -
-      # see scripts/build_metadata_index.py's docstring for what is and isn't
-      # treated as fatal (chapter-range overlaps from "cover story" bonus
-      # chapters are expected and only reported, not failed on).
       - name: Build metadata-index.json
         run: python3 scripts/build_metadata_index.py
 
