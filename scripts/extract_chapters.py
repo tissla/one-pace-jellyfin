@@ -13,8 +13,6 @@ LEADING_NUMBER_RE = re.compile(r"^\s*(\d+)(?:\s*-\s*(\d+))?")
 
 
 def parse_component(text: str) -> str | None:
-    """Leading 'N' or 'N-M' from a chapter-list component, ignoring trailing
-    text (e.g. 'cover stories'). None if it doesn't start with a digit."""
     m = LEADING_NUMBER_RE.match(text)
     if not m:
         return None
