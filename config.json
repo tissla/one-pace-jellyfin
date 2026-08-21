@@ -8,7 +8,8 @@
     "title": "td:nth-child(2) a:last-child",
     "seeders": "td:nth-child(6)",
     "torrent_link": "td:nth-child(3) a[href^='/download/']",
-    "torrent_id": "/download/(\\d+)"
+    "torrent_id": "/download/(\\d+)",
+    "upload_date": "td:nth-child(5)"
   },
   "validation": {
     "required_in_title": "one pace"
