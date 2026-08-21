@@ -1,24 +1,4 @@
 #!/usr/bin/env python3
-"""Build One Pace/metadata-index.json from chapters.json + the NFOs.
-
-Single source of generation logic, run both one-shot locally and by CI on
-every push. Output shape matches opforjellyfin's shared.MetadataIndex
-(internal/shared/types.go / internal/metadata/indexbuilder.go there):
-
-    {"seasons": {"Season 1": {"range": "1-45", "name": "Romance Dawn",
-                               "episodes": {"1-1": {"title": "<nfo filename
-                               stem>"}, ...}}, "Specials": {...}}}
-
-EpisodeData.title is the NFO's filename stem (not the <title> tag), matching
-opforjellyfin's indexbuilder.go exactly, so upgrading an existing install
-doesn't rename anything already placed on disk.
-
-Exit codes:
-    0  success (validation warnings, if any, are non-fatal)
-    1  an episode NFO has no chapters.json entry at all (a real oversight -
-       every current episode has one; only trips for future ones added
-       without updating chapters.json first)
-"""
 import json
 import re
 import sys
@@ -105,20 +85,33 @@ def main() -> int:
         hi = max(e for _, e in starts_ends)
         bucket["range"] = f"{lo}-{hi}"
 
-    OUT_PATH.write_text(json.dumps({"seasons": seasons}, indent=2, sort_keys=True) + "\n")
+    OUT_PATH.write_text(
+        json.dumps({"seasons": seasons}, indent=2, sort_keys=True) + "\n"
+    )
 
     if orphans:
-        print(f"NOTE: {len(orphans)} chapters.json entries have no matching NFO on disk:", file=sys.stderr)
+        print(
+            f"NOTE: {len(orphans)} chapters.json entries have no matching NFO on disk:",
+            file=sys.stderr,
+        )
         for o in orphans:
             print(f"  {o}", file=sys.stderr)
 
-    print(f"Wrote {OUT_PATH.relative_to(ROOT)} ({len(seasons)} seasons)", file=sys.stderr)
+    print(
+        f"Wrote {OUT_PATH.relative_to(ROOT)} ({len(seasons)} seasons)", file=sys.stderr
+    )
 
     if missing_entries:
-        print(f"\nFAIL: {len(missing_entries)} episode NFOs have no chapters.json entry at all:", file=sys.stderr)
+        print(
+            f"\nFAIL: {len(missing_entries)} episode NFOs have no chapters.json entry at all:",
+            file=sys.stderr,
+        )
         for m in missing_entries:
             print(f"  {m}", file=sys.stderr)
-        print("\nAdd entries to chapters.json (see extract_chapters.py --force), then re-run.", file=sys.stderr)
+        print(
+            "\nAdd entries to chapters.json (see extract_chapters.py --force), then re-run.",
+            file=sys.stderr,
+        )
         return 1
 
     return 0

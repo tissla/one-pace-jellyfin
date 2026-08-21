@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Bootstrap chapters.json from the episode NFOs.
-
-Usage: python3 scripts/extract_chapters.py [--out chapters.json] [--force]
-
-Safe to re-run for new episodes - won't overwrite existing entries unless
---force is passed.
-"""
 import argparse
 import json
 import re

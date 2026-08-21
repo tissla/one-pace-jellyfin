@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Normalize episode .nfo files to a consistent structure.
-
-Fixes: missing <showtitle>, <season>/<episode> shuffled to the end of the
-file, datetime timestamps in <premiered>/<aired>, and the plot's episode-
-count label unified to "Anime Episode(s):". Leaves plot prose, blank-line
-style, and the XML declaration untouched. Idempotent.
-"""
 import re
 import sys
 
